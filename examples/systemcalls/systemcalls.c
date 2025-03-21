@@ -76,6 +76,7 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */   
+    fflush(stdout);
     pid_t pid = fork();  // Create a child process
 
     if (pid == -1) {
@@ -132,6 +133,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    fflush(stdout);
     pid_t pid = fork();  // Create a child process
 
     if (pid == -1) {
