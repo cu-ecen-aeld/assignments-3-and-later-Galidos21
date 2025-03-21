@@ -1,30 +1,14 @@
 
-#include "unity.h"
+#include "systemcalls.h"
+
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
-#include "../../../examples/systemcalls/systemcalls.h"
-#include "file_write_commands.h"
-
-/**
-* This function should:
-*   1) Call the do_system() function in systemcalls.c to perform the system() operation.
-*   2) Obtain the value returned from return_string_validation() in file_write_commands.h within
-*       the assignment autotest submodule at assignment-autotest/test/assignment3/
-*   3) Use unity assertion TEST_ASSERT_EQUAL_STRING_MESSAGE the two strings are equal.  See
-*       the [unity assertion reference](https://github.com/ThrowTheSwitch/Unity/blob/master/docs/UnityAssertionsReference.md)
-*   4) Test with strncmp fo string which return the full path for $HOME,
-*       and compare the value using TEST_ASSERT_EQUAL_INT16_MESSAGE.
-*   5) Call the do_exec() function in systemcalls.c to perform fork(), execv() and wait() instead of using the system() command.
-*   6) Test for a true and false message on the above commands using TEST_ASSERT_FALSE_MESSAGE(TRUE_MESSAGE).
-*   7) Call the do_exec_redirect() function in systemcalls.c to perform the same operation as do_exec(),
-*       but redirect ouptut to standard out.
-*   8) Obtain the value returned from return_string_validation() in file_write_commands.h within
-*       the assignment autotest submodule at assignment-autotest/test/assignment3/
-*   9) Use unity assertion TEST_ASSERT_EQUAL_STRING_MESSAGE the two strings are equal.
-*
-**/
-#define REDIRECT_FILE "testfile.txt"
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -42,8 +26,14 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    if (cmd == NULL) {
+        return false;  // Return false if cmd is NULL
+    }
 
-    return true;
+    int ret = system(cmd);
+
+    // system() returns -1 on failure or the exit status of the command
+    return (ret != -1 && WIFEXITED(ret) && WEXITSTATUS(ret) == 0);
 }
 
 /**
@@ -75,6 +65,8 @@ bool do_exec(int count, ...)
     // and may be removed
     command[count] = command[count];
 
+    va_end(args);
+
 /*
  * TODO:
  *   Execute a system command by calling fork, execv(),
@@ -83,11 +75,31 @@ bool do_exec(int count, ...)
  *   (first argument to execv), and use the remaining arguments
  *   as second argument to the execv() command.
  *
-*/
+*/   
+    pid_t pid = fork();  // Create a child process
 
-    va_end(args);
+    if (pid == -1) {
+        perror("fork failed");
+        return false;  // Fork failed
+    } 
+    
+    if (pid == 0) {
+        // Child process: execute the command
+        execv(command[0], command);
+        perror("execv failed");  // If execv returns, it failed
+        exit(EXIT_FAILURE);
+    }
 
-    return true;
+    // Parent process: wait for child to complete
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        perror("waitpid failed");
+        return false;
+    }
+
+    // Check if child process terminated successfully
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+
 }
 
 /**
@@ -110,6 +122,8 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // and may be removed
     command[count] = command[count];
 
+    va_end(args);
+
 
 /*
  * TODO
@@ -118,83 +132,43 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    pid_t pid = fork();  // Create a child process
 
-    va_end(args);
-
-    return true;
-}
-
-void test_systemcalls()
-{
-
-    printf("Running tests at %s : function %s\n",__FILE__,__func__);
-    TEST_ASSERT_TRUE_MESSAGE(do_system("echo this is a test > " REDIRECT_FILE ),
-            "do_system call should return true running echo command");
-    char *test_string = malloc_first_line_of_file(REDIRECT_FILE);
-    printf("system() echo this is a test returned %s\n", test_string);
-    // Testing implementation with testfile.txt output 
-    TEST_ASSERT_EQUAL_STRING_MESSAGE("this is a test", test_string,
-            "Did not find \"this is a test\" in output of echo command." 
-            " Is your system() function implemented properly?");
-    free((void *)test_string);
+    if (pid == -1) {
+        perror("fork failed");
+        return false;  // Fork failed
+    } 
     
-    TEST_ASSERT_TRUE_MESSAGE(do_system("echo \"home is $HOME\" > " REDIRECT_FILE),
-             "do_system call should return true running echo command");
-    test_string = malloc_first_line_of_file(REDIRECT_FILE);
-    int test_value = strncmp(test_string, "home is /", 9);
-    printf("system() echo home is $HOME returned: %s\n", test_string);
-    // Testing implementation with testfile.txt output 
-    TEST_ASSERT_EQUAL_INT16_MESSAGE(test_value, 0,
-            "The first 9 chars echoed should be \"home is /\".  The last chars will include "
-            "the content of the $HOME variable");
-    test_value = strncmp(test_string, "home is $HOME", 9);
-    TEST_ASSERT_NOT_EQUAL_INT16_MESSAGE(test_value, 0,
-            "The $HOME parameter should be expanded when using system()");
-    free((void *)test_string);
+    if (pid == 0) {
+        // Child process: Redirect stdout to outputfile
+        int fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            perror("open failed");
+            exit(EXIT_FAILURE);
+        }
 
-}
+        // Redirect standard output (fd 1) to the file
+        if (dup2(fd, STDOUT_FILENO) == -1) {
+            perror("dup2 failed");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
 
-void test_exec_calls()
-{
-    printf("Running tests at %s : function %s\n",__FILE__,__func__);
-    TEST_ASSERT_FALSE_MESSAGE(do_exec(2, "echo", "Testing execv implementation with echo"),
-             "The exec() function should have returned false since echo was not specified"
-             " with absolute path as a command and PATH expansion is not performed.");
-    TEST_ASSERT_FALSE_MESSAGE(do_exec(3, "/usr/bin/test","-f","echo"),
-             "The exec() function should have returned false since echo was not specified"
-             " with absolute path in argument to the test executable.");
-    TEST_ASSERT_TRUE_MESSAGE(do_exec(3, "/usr/bin/test","-f","/bin/echo"),
-             "The function should return true since /bin/echo represents the echo command"
-             " and test -f verifies this is a valid file");
-}
+        close(fd);  // Close the unused file descriptor
 
-void test_exec_redirect_calls()
-{
-    printf("Running tests at %s : function %s\n",__FILE__,__func__);
-    do_exec_redirect(REDIRECT_FILE, 3, "/bin/sh", "-c", "echo home is $HOME");
-    char *test_string = malloc_first_line_of_file(REDIRECT_FILE);
-    TEST_ASSERT_NOT_NULL_MESSAGE(test_string,"Nothing written to file at " REDIRECT_FILE );
-    if( test_string != NULL ) {
-        int test_value = strncmp(test_string, "home is /", 9);
-        printf("execv /bin/sh -c echo home is $HOME returned %s\n", test_string);
-        // Testing implementation with testfile.txt output 
-        TEST_ASSERT_EQUAL_INT16_MESSAGE(test_value, 0,
-                "The first 9 chars echoed should be \"home is /\".  The last chars will include "
-                "the content of the $HOME variable");
-        test_value = strncmp(test_string, "home is $HOME", 9);
-        TEST_ASSERT_NOT_EQUAL_INT16_MESSAGE(test_value, 0,
-                "The $HOME parameter should be expanded when using /bin/sh with do_exec()");
-        free(test_string);
+        // Execute the command
+        execv(command[0], command);
+        perror("execv failed");  // If execv returns, it failed
+        exit(EXIT_FAILURE);
     }
 
-    do_exec_redirect(REDIRECT_FILE, 2, "/bin/echo", "home is $HOME");
-    test_string = malloc_first_line_of_file(REDIRECT_FILE);
-    TEST_ASSERT_NOT_NULL_MESSAGE(test_string,"Nothing written to file at " REDIRECT_FILE );
-    if( test_string != NULL ) {
-        printf("execv /bin/echo home is $HOME returned %s\n", test_string);
-        // Testing implementation with testfile.txt output 
-        TEST_ASSERT_EQUAL_STRING_MESSAGE("home is $HOME", test_string, 
-                    "The variable $HOME should not be expanded using execv()");
-        free(test_string);
+    // Parent process: wait for child to complete
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        perror("waitpid failed");
+        return false;
     }
+
+    // Check if child process terminated successfully
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
