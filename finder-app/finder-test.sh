@@ -46,8 +46,8 @@ then
 fi
 
 echo "Cleaning previous build artifacts and compiling writer application"
-make clean
-make
+# make clean
+# make
 
 for i in $(seq 1 $NUMFILES)
 do
