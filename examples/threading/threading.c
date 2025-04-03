@@ -33,9 +33,9 @@ void* threadfunc(void* thread_param) {
     DEBUG_LOG("Mutex unlocked");
 
     // Free memory and exit
-    free(thread_func_args);
-    //return NULL;
-    return thread_param;
+    // free(thread_func_args);
+    // return NULL;
+     return thread_param;
 }
 
 bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex, int wait_to_obtain_ms, int wait_to_release_ms) {
@@ -54,7 +54,7 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex, int
     // Create the thread
     if (pthread_create(thread, NULL, threadfunc, thread_args) != 0) {
         ERROR_LOG("Thread creation failed");
-        free(thread_args);
+        // free(thread_args);
         thread_args->thread_complete_success = false;
         return false;
     }else{
