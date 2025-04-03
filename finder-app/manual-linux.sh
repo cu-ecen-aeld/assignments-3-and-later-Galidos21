@@ -137,7 +137,7 @@ cp ${FINDER_APP_DIR}/autorun-qemu.sh $OUTDIR/rootfs/home
 echo "Finder files copied successfully!"
 
 # TODO: Chown the root directory
-sudo chown -R root:root *
+sudo chown -R root:root $OUTDIR/rootfs
 
 # TODO: Create initramfs.cpio.gz
 cd ${OUTDIR}/rootfs
