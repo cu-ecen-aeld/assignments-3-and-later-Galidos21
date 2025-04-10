@@ -56,7 +56,7 @@ do
 done
 
 # Capture the output of finder.sh into OUTPUTSTRING
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(finder.sh "$WRITEDIR" "$WRITESTR")
 
 # Write the output to a file
 echo "${OUTPUTSTRING}" > /tmp/assignment4-result.txt
@@ -71,6 +71,6 @@ if [ $? -eq 0 ]; then
     exit 0
 else
     echo "failed: expected  ${MATCHSTR} in ${OUTPUTSTRING} but instead found"
-    cat /tmp/assignment4-result.txt
+    #cat /tmp/assignment4-result.txt
     exit 1
 fi
