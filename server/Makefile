@@ -1,13 +1,40 @@
-CC ?= gcc
-CFLAGS ?= -Wall -Werror -g
-TARGET = aesdsocket
+ifdef CROSS_COMPILE
+ifneq ($(CROSS_COMPILE), aarch64-none-linux-gnu-)
+$(error '$(CROSS_COMPILE)' is not supported!)
+endif
+endif
+
+TARGET ?= aesdsocket
+CC ?= $(CROSS_COMPILE)gcc
+#CC = aarch64-none-linux-gnu-gcc
+CFLAGS ?= -g -Wall
+LDFLAGS ?= -Bstatic -pthread -lpthread -lrt
+
+
+
+default: $(TARGET)
 
 all: $(TARGET)
 
-$(TARGET): aesdsocket.c
-	$(CC) $(CFLAGS) -o $@ $<
+
+# Source files
+SRCS = $(TARGET).c
+
+# Object files
+OBJS = $(SRCS:.c=.o)
+
+.c.o:
+	$(CC) -c $(CFLAGS) $^
+	
+$(TARGET): $(OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+
+
 
 clean:
-	rm -f $(TARGET)
-
-.PHONY: all clean
+	rm -rf *.o $(TARGET)
+	
+distclean: clean
+	
+.PHONY: all default clean distclean
