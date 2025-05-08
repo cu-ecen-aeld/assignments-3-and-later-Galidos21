@@ -6,24 +6,16 @@ PIDFILE="/var/run/aesdsocket.pid"
 DAEMON_OPTS="-d"
 
 case "$1" in
-    start)
-        echo "Starting $DAEMON_NAME"
-        start-stop-daemon --start --quiet --background \
-            --pidfile "$PIDFILE" \
-            --make-pidfile \
-            --exec "$DAEMON_PATH" -- $DAEMON_OPTS
-        ;;
-    stop)
-        echo "Stopping $DAEMON_NAME"
-        start-stop-daemon --stop --quiet \
-            --pidfile "$PIDFILE" \
-            --retry TERM/5/KILL/1
-        rm -f "$PIDFILE"
-        ;;
-    *)
-        echo "Usage: $0 {start|stop}"
-        exit 1
-        ;;
-esac
-
-exit 0
+	start)
+		echo "Starting aesdsocket"
+		start-stop-daemon -S -n aesdsocket -a /usr/bin/aesdsocket -- -d
+		;;
+	stop)   
+		echo "Stopping aesdsocket"
+		start-stop-daemon -K -n aesdsocket
+		;;
+	*)      
+		echo "Usage: $0 {start|stop}"
+		exit 1
+ 	esac    
+exit 0 
